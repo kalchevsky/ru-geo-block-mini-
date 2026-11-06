@@ -1,0 +1,30 @@
+# Категории, которые попадут в итоговый geosite.dat
+# Пустые строки и строки, начинающиеся с #, игнорируются.
+# Полный список доступных категорий:
+#   https://github.com/runetfreedom/russia-blocked-geosite#доступные-категории
+#
+# ВНИМАНИЕ: каждая категория увеличивает итоговый файл и потребление RAM на роутере.
+# Ориентир: одна ru-blocked ≈ 1.5 МБ, весь набор ниже ≈ 1.6-2.5 МБ.
+
+# --- заблокировано в РФ ---
+ru-blocked
+
+# --- популярные сервисы ---
+google
+youtube
+discord
+telegram
+meta
+twitter
+openai
+
+# Раскомментируйте при необходимости (файл вырастет):
+# ru-blocked-community
+# refilter
+# ru-available-only-inside
+# category-ads-all
+# win-spy
+# win-update
+# win-extra
+# rutracker
+# steam

@@ -1,0 +1,16 @@
+# Категории, которые попадут в итоговый geoip.dat
+# Пустые строки и строки, начинающиеся с #, игнорируются.
+#
+# ВНИМАНИЕ: geoip-категории крупнее geosite. ru-blocked содержит
+# десятки тысяч подсетей и весит ~1.5 МБ.
+
+# --- заблокированные в РФ IP-подсети (antifilter + re:filter) ---
+ru-blocked
+
+# Раскомментируйте при необходимости:
+# ru-blocked-community
+# refilter
+# ru-whitelist
+# google
+# cloudflare
+# telegram

@@ -1,0 +1,100 @@
+name: Build mini geo
+
+# Пересобираем мини-файлы каждые 6 часов (источники обновляются так же часто)
+# + возможность запустить вручную из вкладки Actions.
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "config/**.list"
+      - "scripts/build.sh"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-geo
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      GEOVIEW_REPO: "snowie2000/geoview"
+      GEOSITE_SRC: "https://raw.githubusercontent.com/runetfreedom/russia-blocked-geosite/release/geosite.dat"
+      GEOIP_SRC: "https://raw.githubusercontent.com/runetfreedom/russia-blocked-geoip/release/geoip.dat"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Установить geoview
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Берём последний релиз snowie2000/geoview через API (тег без префикса v)
+          TAG="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+                 "https://api.github.com/repos/${GEOVIEW_REPO}/releases/latest" \
+                 | jq -r '.tag_name')"
+          echo "geoview tag: $TAG"
+          curl -fsSL --retry 3 -o /tmp/geoview \
+            "https://github.com/${GEOVIEW_REPO}/releases/download/${TAG}/geoview-linux-amd64"
+          chmod +x /tmp/geoview
+          /tmp/geoview -version || /tmp/geoview 2>&1 | head -3 || true
+
+      - name: Собрать geoip.dat и geosite.dat
+        env:
+          GEOVIEW: /tmp/geoview
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          ./scripts/build.sh
+
+      - name: Показать результат
+        run: |
+          ls -la out/
+          for f in out/*.dat; do
+            echo "$(basename "$f"): $(du -h "$f" | cut -f1)  sha256=$(sha256sum "$f" | cut -d' ' -f1)"
+          done
+
+      - name: Сформировать тег релиза
+        id: tag
+        run: echo "tag=geo-$(date -u +%Y%m%d-%H%M)" >> "$GITHUB_OUTPUT"
+
+      - name: Опубликовать Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "Geo mini ${{ steps.tag.outputs.tag }}"
+          body: |
+            Мини-сборка geo-файлов, собранная автоматически.
+
+            **Стабильные ссылки (всегда последняя версия):**
+            - https://github.com/${{ github.repository }}/releases/latest/download/geosite.dat
+            - https://github.com/${{ github.repository }}/releases/latest/download/geoip.dat
+
+            Категории задаются в `config/geosite.list` и `config/geoip.list`.
+          files: |
+            out/geosite.dat
+            out/geoip.dat
+            out/*.sha256sum
+          fail_on_unmatched_files: true
+
+      - name: Удалить старые релизы (оставляем 5 последних)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release list --repo "${{ github.repository }}" --limit 100 \
+            --json tagName,createdAt --jq 'sort_by(.createdAt) | reverse | .[5:] | .[].tagName' \
+            | while read -r tag; do
+                [ -z "$tag" ] && continue
+                echo "Удаляю старый релиз: $tag"
+                gh release delete "$tag" --repo "${{ github.repository }}" --yes --cleanup-tag || true
+              done
