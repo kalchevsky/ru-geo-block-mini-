@@ -57,7 +57,9 @@ build_one() {
 
   cp "$WORK/out.dat" "$OUT/$outname"
   ( cd "$OUT" && sha256sum "$outname" > "$outname.sha256sum" )
-  echo "   готово: $(du -h "$OUT/$outname" | cut -f1)"
+  local sz
+  sz="$(stat -c%s "$OUT/$outname" 2>/dev/null || wc -c < "$OUT/$outname")"
+  echo "   готово: ${sz} байт"
 }
 
 build_one geosite "$GEOSITE_SRC" "$ROOT/config/geosite.list" geosite.dat
